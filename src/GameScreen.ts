@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { createArcadeText, isBossEnemy, setCircleBody, type ArcadeText } from './game/actors';
 import { getSpawnDistance, getViewport } from './game/layout';
+import { SoundEffects } from './game/soundEffects';
 
 type EnemyActor = ArcadeText;
 type Direction = 'up' | 'down' | 'left' | 'right';
@@ -51,10 +52,16 @@ export class GameScene extends Phaser.Scene {
   private restartText?: Phaser.GameObjects.Text;
   private pauseText?: Phaser.GameObjects.Text;
   private pauseHintText?: Phaser.GameObjects.Text;
+  private sounds = new SoundEffects();
   private readonly handleGlobalPauseKeyDown = (event: KeyboardEvent) => {
     if (event.code === 'KeyP') {
       event.preventDefault();
       this.togglePause();
+    }
+
+    if (event.code === 'KeyM') {
+      event.preventDefault();
+      this.toggleMute();
     }
   };
 
@@ -99,6 +106,8 @@ export class GameScene extends Phaser.Scene {
     this.setupCollisions();
     this.syncViewport();
     this.drawHpBar();
+    this.input.once('pointerdown', () => this.sounds.unlock());
+    this.input.keyboard?.once('keydown', () => this.sounds.unlock());
     window.addEventListener('keydown', this.handleGlobalPauseKeyDown);
 
     this.scale.on(Phaser.Scale.Events.RESIZE, this.handleResize, this);
@@ -179,6 +188,14 @@ export class GameScene extends Phaser.Scene {
     this.pauseGame();
   }
 
+  public toggleMute() {
+    return this.sounds.toggleMute();
+  }
+
+  public isMuted() {
+    return this.sounds.isMuted();
+  }
+
   private createPlayer() {
     const viewport = getViewport(this);
     const player = createArcadeText(this, viewport.centerX, viewport.centerY, '🤖', {
@@ -197,6 +214,7 @@ export class GameScene extends Phaser.Scene {
       const enemy = enemyObject as EnemyActor;
 
       bullet.destroy();
+      this.sounds.enemyHit();
 
       const enemyHP = (enemy.getData('hp') as number | undefined) ?? 1;
       const nextHP = enemyHP - 1;
@@ -233,6 +251,7 @@ export class GameScene extends Phaser.Scene {
 
       enemy.destroy();
       this.cameras.main.shake(100, 0.01);
+      this.sounds.playerDamage();
 
       this.hp -= enemyIsBoss ? 40 : 20;
 
@@ -292,7 +311,12 @@ export class GameScene extends Phaser.Scene {
 
   private checkDifficultyScaling() {
     const currentLevel = Math.floor(this.score / 100) + 1;
+    const previousLevel = Number(this.lvlText.text.replace('Level ', '')) || 1;
     this.lvlText.setText(`Level ${currentLevel}`);
+
+    if (currentLevel > previousLevel) {
+      this.sounds.levelUp();
+    }
 
     const newDelay = Math.max(400, 1500 - (currentLevel - 1) * 150);
     if (newDelay !== this.spawnDelay) {
@@ -314,6 +338,7 @@ export class GameScene extends Phaser.Scene {
     });
     setCircleBody(bullet, 10, 4);
     this.bullets.add(bullet);
+    this.sounds.shoot();
 
     this.physics.moveToObject(bullet, closestEnemy, this.bulletSpeed);
   }
@@ -361,6 +386,7 @@ export class GameScene extends Phaser.Scene {
     this.spawnTimerEvent?.destroy();
     this.hpBar.clear();
     this.hidePauseOverlay();
+    this.sounds.gameOver();
 
     this.player.body.setVelocity(0);
     this.enemies.getChildren().forEach((enemyObject) => {

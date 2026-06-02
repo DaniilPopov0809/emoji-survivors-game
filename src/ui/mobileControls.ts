@@ -54,6 +54,9 @@ export function createMobileControls(game: Phaser.Game): MobileControls {
   const dock = document.createElement('div');
   dock.className = 'mobile-controls__dock';
 
+  const actions = document.createElement('div');
+  actions.className = 'mobile-controls__actions';
+
   const pauseButton = createButton(
     'Pause',
     'mobile-controls__pause',
@@ -64,16 +67,28 @@ export function createMobileControls(game: Phaser.Game): MobileControls {
     () => undefined
   );
 
+  const muteButton = createButton(
+    getScene(game)?.isMuted() ? 'Muted' : 'Sound',
+    'mobile-controls__mute',
+    () => {
+      const muted = getScene(game)?.toggleMute() ?? false;
+      muteButton.textContent = muted ? 'Muted' : 'Sound';
+      muteButton.setAttribute('aria-label', muteButton.textContent);
+    },
+    () => undefined
+  );
+
   const pad = document.createElement('div');
   pad.className = 'mobile-controls__controls';
 
-  const up = createButton('↑', 'mobile-controls__button mobile-controls__button--up', () => setDirection('up', true), () => setDirection('up', false));
-  const left = createButton('←', 'mobile-controls__button mobile-controls__button--left', () => setDirection('left', true), () => setDirection('left', false));
-  const down = createButton('↓', 'mobile-controls__button mobile-controls__button--down', () => setDirection('down', true), () => setDirection('down', false));
-  const right = createButton('→', 'mobile-controls__button mobile-controls__button--right', () => setDirection('right', true), () => setDirection('right', false));
+  const up = createButton('UP', 'mobile-controls__button mobile-controls__button--up', () => setDirection('up', true), () => setDirection('up', false));
+  const left = createButton('L', 'mobile-controls__button mobile-controls__button--left', () => setDirection('left', true), () => setDirection('left', false));
+  const down = createButton('DN', 'mobile-controls__button mobile-controls__button--down', () => setDirection('down', true), () => setDirection('down', false));
+  const right = createButton('R', 'mobile-controls__button mobile-controls__button--right', () => setDirection('right', true), () => setDirection('right', false));
 
+  actions.append(muteButton, pauseButton);
   pad.append(up, left, down, right);
-  dock.append(pauseButton, pad);
+  dock.append(actions, pad);
   root.append(dock);
 
   const parent = game.canvas.parentElement ?? document.getElementById('app') ?? document.body;

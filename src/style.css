@@ -68,6 +68,11 @@ canvas {
     gap: 10px;
 }
 
+.mobile-controls__actions {
+    display: flex;
+    gap: 8px;
+}
+
 .mobile-controls__controls {
     display: grid;
     grid-template-areas:
@@ -97,7 +102,8 @@ canvas {
 }
 
 .mobile-controls__button,
-.mobile-controls__pause {
+.mobile-controls__pause,
+.mobile-controls__mute {
     font-family: 'Orbitron', sans-serif;
     border: 1px solid rgba(255, 255, 255, 0.18);
     background: rgba(15, 23, 42, 0.3);
@@ -122,6 +128,13 @@ canvas {
     width: 54px;
     height: 54px;
     font-size: 10px;
+    font-weight: 700;
+}
+
+.mobile-controls__mute {
+    width: 54px;
+    height: 54px;
+    font-size: 9px;
     font-weight: 700;
 }
 
