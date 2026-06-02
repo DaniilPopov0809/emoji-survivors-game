@@ -74,8 +74,8 @@ canvas {
         '. up .'
         'left . right'
         '. down .';
-    grid-template-columns: repeat(3, 54px);
-    grid-template-rows: repeat(3, 54px);
+    grid-template-columns: repeat(3, 32px);
+    grid-template-rows: repeat(3, 32px);
     gap: 8px;
     padding: 10px;
 }
@@ -98,29 +98,30 @@ canvas {
 
 .mobile-controls__button,
 .mobile-controls__pause {
+    font-family: 'Orbitron', sans-serif;
     border: 1px solid rgba(255, 255, 255, 0.18);
-    background: rgba(15, 23, 42, 0.5);
+    background: rgba(15, 23, 42, 0.3);
     color: #fff;
-    border-radius: 999px;
+    border-radius: 50%;
     box-shadow: 0 14px 32px rgba(0, 0, 0, 0.28);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
     touch-action: manipulation;
     user-select: none;
     -webkit-user-select: none;
 }
 
 .mobile-controls__button {
-    width: 54px;
-    height: 54px;
-    font-size: 20px;
+    width: 40px;
+    height: 40px;
+    font-size: 16px;
     font-weight: 800;
 }
 
 .mobile-controls__pause {
-    width: 68px;
-    height: 68px;
-    font-size: 15px;
+    width: 54px;
+    height: 54px;
+    font-size: 10px;
     font-weight: 700;
 }
 

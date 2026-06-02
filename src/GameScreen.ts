@@ -5,6 +5,13 @@ import { getSpawnDistance, getViewport } from './game/layout';
 type EnemyActor = ArcadeText;
 type Direction = 'up' | 'down' | 'left' | 'right';
 
+const hudOffset = {
+  scoreX: 20,
+  scoreY: 20,
+  levelRight: 20,
+  levelY: 20
+};
+
 export class GameScene extends Phaser.Scene {
   private player!: ArcadeText;
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
@@ -72,18 +79,19 @@ export class GameScene extends Phaser.Scene {
     };
 
     this.enemies = this.physics.add.group();
-    this.bullets = this.physics.add.group();
+    this.bullets = this.physics.add.group()
+
 
     this.scoreText = this.add.text(20, 20, '⭐ Score: 0', {
-      fontSize: '24px',
-      color: '#ffeb3b',
-      fontFamily: 'Arial'
+      fontSize: '20px',
+      color: '#dfcb1f',
+      fontFamily: 'Orbitron'
     });
 
-    this.lvlText = this.add.text(0, 20, 'Level 1', {
-      fontSize: '24px',
-      color: '#b3e5fc',
-      fontFamily: 'Arial'
+    this.lvlText = this.add.text(0, hudOffset.levelY, 'Level 100', {
+      fontSize: '20px',
+      color: '#1278a7',
+      fontFamily: 'Orbitron'
     });
     this.lvlText.setOrigin(1, 0);
 
@@ -174,7 +182,7 @@ export class GameScene extends Phaser.Scene {
   private createPlayer() {
     const viewport = getViewport(this);
     const player = createArcadeText(this, viewport.centerX, viewport.centerY, '🤖', {
-      fontSize: '48px'
+      fontSize: '44px'
     }).setOrigin(0.5);
 
     player.body.setCollideWorldBounds(true);
@@ -363,16 +371,16 @@ export class GameScene extends Phaser.Scene {
     const viewport = getViewport(this);
 
     this.gameOverText = this.add.text(viewport.centerX, viewport.centerY - 50, 'GAME OVER', {
-      fontSize: '64px',
-      color: '#ff4d4d',
-      fontFamily: 'Arial',
+      fontSize: '44px',
+      color: '#811010',
+      fontFamily: 'Orbitron',
       fontStyle: 'bold'
     }).setOrigin(0.5);
 
-    this.restartText = this.add.text(viewport.centerX, viewport.centerY + 40, 'Click to restart', {
-      fontSize: '24px',
+    this.restartText = this.add.text(viewport.centerX, viewport.centerY + 40, 'Click or press any key to restart', {
+      fontSize: '18px',
       color: '#ffffff',
-      fontFamily: 'Arial'
+      fontFamily: 'Orbitron'
     }).setOrigin(0.5);
 
     const restart = () => this.scene.restart();
@@ -412,8 +420,8 @@ export class GameScene extends Phaser.Scene {
   private positionHud() {
     const viewport = getViewport(this);
 
-    this.scoreText.setPosition(20, 20);
-    this.lvlText.setPosition(viewport.width - 20, 20);
+    this.scoreText.setPosition(hudOffset.scoreX, hudOffset.scoreY);
+    this.lvlText.setPosition(viewport.width - hudOffset.levelRight, hudOffset.levelY);
 
     if (this.gameOverText && this.restartText) {
       this.gameOverText.setPosition(viewport.centerX, viewport.centerY - 50);
@@ -437,18 +445,18 @@ export class GameScene extends Phaser.Scene {
 
     if (!this.pauseText) {
       this.pauseText = this.add.text(viewport.centerX, viewport.centerY - 50, 'PAUSED', {
-        fontSize: '56px',
+        fontSize: '44px',
         color: '#ffffff',
-        fontFamily: 'Arial',
+        fontFamily: 'Orbitron',
         fontStyle: 'bold'
       }).setOrigin(0.5);
     }
 
     if (!this.pauseHintText) {
       this.pauseHintText = this.add.text(viewport.centerX, viewport.centerY + 20, 'Tap Pause to continue', {
-        fontSize: '22px',
+        fontSize: '20px',
         color: '#d1d5db',
-        fontFamily: 'Arial'
+        fontFamily: 'Orbitron'
       }).setOrigin(0.5);
     }
 
