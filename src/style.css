@@ -83,6 +83,11 @@ canvas {
     grid-template-rows: repeat(3, 32px);
     gap: 8px;
     padding: 10px;
+
+    
+    @media (min-width: 1024px) {
+        display: none;
+    }
 }
 
 .mobile-controls__button--up {
@@ -138,8 +143,3 @@ canvas {
     font-weight: 700;
 }
 
-@media (min-width: 1024px) {
-    .mobile-controls {
-        display: none;
-    }
-}

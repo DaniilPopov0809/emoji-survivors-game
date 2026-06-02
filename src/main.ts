@@ -1,7 +1,8 @@
 import Phaser from 'phaser';
-import { GameScene } from './GameScreen';
-import { createMobileControls } from './ui/mobileControls';
+import { GameScene } from './scenes/GameScene';
+import { MenuScene } from './scenes/MenuScene';
 import './style.css';
+import { createMobileControls } from './ui/mobileControls';
 
 const app = document.getElementById('app');
 
@@ -22,7 +23,7 @@ const config: Phaser.Types.Core.GameConfig = {
             debug: false
         }
     },
-    scene: [GameScene]
+    scene: [MenuScene, GameScene] 
 };
 
 const game = new Phaser.Game(config);

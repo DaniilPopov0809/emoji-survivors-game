@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
-import { createArcadeText, isBossEnemy, setCircleBody, type ArcadeText } from './game/actors';
-import { getSpawnDistance, getViewport } from './game/layout';
-import { SoundEffects } from './game/soundEffects';
+import { createArcadeText, isBossEnemy, setCircleBody, type ArcadeText } from '../game/actors';
+import { getSpawnDistance, getViewport } from '../game/layout';
+import { SoundEffects } from '../game/soundEffects';
 
 type EnemyActor = ArcadeText;
 type Direction = 'up' | 'down' | 'left' | 'right';
@@ -95,7 +95,7 @@ export class GameScene extends Phaser.Scene {
       fontFamily: 'Orbitron'
     });
 
-    this.lvlText = this.add.text(0, hudOffset.levelY, 'Level 100', {
+    this.lvlText = this.add.text(0, hudOffset.levelY, 'Level 1', {
       fontSize: '20px',
       color: '#1278a7',
       fontFamily: 'Orbitron'

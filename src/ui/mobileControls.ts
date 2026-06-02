@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { GameScene } from '../GameScreen';
+import { GameScene } from '../scenes/GameScene';
 
 type Direction = 'up' | 'down' | 'left' | 'right';
 
@@ -44,7 +44,7 @@ export function createMobileControls(game: Phaser.Game): MobileControls {
   const root = document.createElement('div');
   root.className = 'mobile-controls';
 
-  const isCompact = window.matchMedia('(max-width: 1023px)');
+  const isMobile = window.matchMedia('(max-width: 1023px)');
   const movementState: Direction[] = ['up', 'down', 'left', 'right'];
 
   const setDirection = (direction: Direction, pressed: boolean) => {
@@ -95,7 +95,19 @@ export function createMobileControls(game: Phaser.Game): MobileControls {
   parent.append(root);
 
   const syncVisibility = () => {
-    root.hidden = !isCompact.matches;
+    const inGame = game.scene.isActive('GameScene');
+
+    if (!inGame) {
+      root.hidden = true;
+      return;
+    }
+
+    root.hidden = false;
+
+    up.hidden = !isMobile.matches;
+    left.hidden = !isMobile.matches;
+    down.hidden = !isMobile.matches;
+    right.hidden = !isMobile.matches;
   };
 
   const resetMovement = () => {
@@ -103,12 +115,14 @@ export function createMobileControls(game: Phaser.Game): MobileControls {
   };
 
   syncVisibility();
-  isCompact.addEventListener('change', syncVisibility);
+  game.events.on(Phaser.Core.Events.STEP, syncVisibility);
+  isMobile.addEventListener('change', syncVisibility);
   window.addEventListener('blur', resetMovement);
 
   return {
     destroy() {
-      isCompact.removeEventListener('change', syncVisibility);
+      game.events.off(Phaser.Core.Events.STEP, syncVisibility);
+      isMobile.removeEventListener('change', syncVisibility);
       window.removeEventListener('blur', resetMovement);
       root.remove();
     }
