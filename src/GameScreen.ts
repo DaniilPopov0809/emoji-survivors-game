@@ -1,30 +1,55 @@
 import Phaser from 'phaser';
+import { createArcadeText, isBossEnemy, setCircleBody, type ArcadeText } from './game/actors';
+import { getSpawnDistance, getViewport } from './game/layout';
+
+type EnemyActor = ArcadeText;
+type Direction = 'up' | 'down' | 'left' | 'right';
 
 export class GameScene extends Phaser.Scene {
-  private player!: Phaser.Types.Physics.Arcade.GameObjectWithDynamicBody;
+  private player!: ArcadeText;
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
-  private wasd!: any;
+  private wasd!: Phaser.Types.Input.Keyboard.CursorKeys & {
+    up: Phaser.Input.Keyboard.Key;
+    down: Phaser.Input.Keyboard.Key;
+    left: Phaser.Input.Keyboard.Key;
+    right: Phaser.Input.Keyboard.Key;
+  };
 
   private enemies!: Phaser.Physics.Arcade.Group;
   private bullets!: Phaser.Physics.Arcade.Group;
 
-  private nextAttackTime: number = 0;
-  private attackDelay: number = 1200;
-  private bulletSpeed: number = 250;
-  private baseEnemySpeed: number = 100;
+  private nextAttackTime = 0;
+  private attackDelay = 1200;
+  private bulletSpeed = 250;
+  private baseEnemySpeed = 100;
 
-  private spawnDelay: number = 1500; 
-  private spawnTimerEvent!: Phaser.Time.TimerEvent;
+  private spawnDelay = 1500;
+  private spawnTimerEvent?: Phaser.Time.TimerEvent;
 
   private hpBar!: Phaser.GameObjects.Graphics;
-  private hp: number = 100;
-  private score: number = 0;
-  private isGameOver: boolean = false;
+  private hp = 100;
+  private score = 0;
+  private isGameOver = false;
+  private isPaused = false;
+  private virtualControls: Record<Direction, boolean> = {
+    up: false,
+    down: false,
+    left: false,
+    right: false
+  };
 
   private scoreText!: Phaser.GameObjects.Text;
   private lvlText!: Phaser.GameObjects.Text;
-  private gameOverText!: Phaser.GameObjects.Text;
-  private restartText!: Phaser.GameObjects.Text;
+  private gameOverText?: Phaser.GameObjects.Text;
+  private restartText?: Phaser.GameObjects.Text;
+  private pauseText?: Phaser.GameObjects.Text;
+  private pauseHintText?: Phaser.GameObjects.Text;
+  private readonly handleGlobalPauseKeyDown = (event: KeyboardEvent) => {
+    if (event.code === 'KeyP') {
+      event.preventDefault();
+      this.togglePause();
+    }
+  };
 
   constructor() {
     super('GameScene');
@@ -32,98 +57,79 @@ export class GameScene extends Phaser.Scene {
 
   create() {
     this.hpBar = this.add.graphics();
-    this.hp = 100;
-    this.score = 0;
-    this.isGameOver = false;
-    this.spawnDelay = 1500;
-    this.baseEnemySpeed = 100;
-
-
-    this.player = this.add.text(400, 300, '🤖', { fontSize: '48px' }).setOrigin(0.5) as any
-    this.physics.add.existing(this.player);
-    this.player.body.setCollideWorldBounds(true);
-    this.player.body.setCircle(20, 4, 4);
-
-
+    this.player = this.createPlayer();
     this.cursors = this.input.keyboard!.createCursorKeys();
     this.wasd = this.input.keyboard!.addKeys({
       up: Phaser.Input.Keyboard.KeyCodes.W,
       down: Phaser.Input.Keyboard.KeyCodes.S,
       left: Phaser.Input.Keyboard.KeyCodes.A,
       right: Phaser.Input.Keyboard.KeyCodes.D
-    });
-
+    }) as Phaser.Types.Input.Keyboard.CursorKeys & {
+      up: Phaser.Input.Keyboard.Key;
+      down: Phaser.Input.Keyboard.Key;
+      left: Phaser.Input.Keyboard.Key;
+      right: Phaser.Input.Keyboard.Key;
+    };
 
     this.enemies = this.physics.add.group();
     this.bullets = this.physics.add.group();
 
-    this.scoreText = this.add.text(20, 20, '⭐ Score: 0', { fontSize: '24px', color: '#ffeb3b', fontFamily: 'Arial' });
-    this.lvlText = this.add.text(680, 20, 'Level 1', { fontSize: '24px', color: '#b3e5fc', fontFamily: 'Arial' });
+    this.scoreText = this.add.text(20, 20, '⭐ Score: 0', {
+      fontSize: '24px',
+      color: '#ffeb3b',
+      fontFamily: 'Arial'
+    });
+
+    this.lvlText = this.add.text(0, 20, 'Level 1', {
+      fontSize: '24px',
+      color: '#b3e5fc',
+      fontFamily: 'Arial'
+    });
+    this.lvlText.setOrigin(1, 0);
 
     this.startSpawnTimer();
+    this.setupCollisions();
+    this.syncViewport();
     this.drawHpBar();
+    window.addEventListener('keydown', this.handleGlobalPauseKeyDown);
 
-    this.physics.add.overlap(this.bullets, this.enemies, (bullet: any, enemy: any) => {
-      bullet.destroy();
-
-      let enemyHP = enemy.getData('hp');
-      if (enemyHP !== undefined) {
-        enemyHP -= 1;
-        enemy.setData('hp', enemyHP);
-
-        this.tweens.add({
-          targets: enemy,
-          alpha: 0.5,
-          duration: 50,
-          yoyo: true,
-          repeat: 1
-        });
-
-        if (enemyHP > 0) return; 
-      }
-
-      enemy.destroy();
-
-      const isBoss = enemy.getData('isBoss');
-      this.score += isBoss ? 100 : 10;
-      this.scoreText.setText(`⭐ Score: ${this.score}`);
-
-      this.checkDifficultyScaling();
-    });
-
-    this.physics.add.overlap(this.player, this.enemies, (player: any, enemy: any) => {
-      if (this.isGameOver) return;
-
-      const isBoss = enemy.getData('isBoss');
-      enemy.destroy();
-
-      this.cameras.main.shake(100, 0.01);
-
-      this.hp -= isBoss ? 40 : 20;
-
-      if (this.hp <= 0) {
-        this.hp = 0;
-        this.triggerGameOver();
-      }
-    });
+    this.scale.on(Phaser.Scale.Events.RESIZE, this.handleResize, this);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, this.cleanup, this);
   }
 
   update(time: number) {
-    if (this.isGameOver) return;
+    if (this.isGameOver || this.isPaused) {
+      return;
+    }
 
+    const viewport = getViewport(this);
     const speed = 250;
+
     this.player.body.setVelocity(0);
 
-    if (this.cursors.left.isDown || this.wasd.left.isDown) this.player.body.setVelocityX(-speed);
-    else if (this.cursors.right.isDown || this.wasd.right.isDown) this.player.body.setVelocityX(speed);
+    const moveLeft = this.cursors.left.isDown || this.wasd.left.isDown || this.virtualControls.left;
+    const moveRight = this.cursors.right.isDown || this.wasd.right.isDown || this.virtualControls.right;
+    const moveUp = this.cursors.up.isDown || this.wasd.up.isDown || this.virtualControls.up;
+    const moveDown = this.cursors.down.isDown || this.wasd.down.isDown || this.virtualControls.down;
 
-    if (this.cursors.up.isDown || this.wasd.up.isDown) this.player.body.setVelocityY(-speed);
-    else if (this.cursors.down.isDown || this.wasd.down.isDown) this.player.body.setVelocityY(speed);
+    if (moveLeft) {
+      this.player.body.setVelocityX(-speed);
+    } else if (moveRight) {
+      this.player.body.setVelocityX(speed);
+    }
+
+    if (moveUp) {
+      this.player.body.setVelocityY(-speed);
+    } else if (moveDown) {
+      this.player.body.setVelocityY(speed);
+    }
 
     this.player.body.velocity.normalize().scale(speed);
 
-    this.enemies.getChildren().forEach((enemy: any) => {
-      const customSpeed = enemy.getData('speed') || this.baseEnemySpeed;
+    this.enemies.getChildren().forEach((enemyObject) => {
+      const enemy = enemyObject as EnemyActor;
+      const customSpeed = (enemy.getData('speed') as number | undefined) ?? this.baseEnemySpeed;
+
       this.physics.moveToObject(enemy, this.player, customSpeed);
     });
 
@@ -132,8 +138,15 @@ export class GameScene extends Phaser.Scene {
       this.nextAttackTime = time + this.attackDelay;
     }
 
-    this.bullets.getChildren().forEach((bullet: any) => {
-      if (bullet.x < 0 || bullet.x > 800 || bullet.y < 0 || bullet.y > 600) {
+    this.bullets.getChildren().forEach((bulletObject) => {
+      const bullet = bulletObject as ArcadeText;
+
+      if (
+        bullet.x < 0 ||
+        bullet.x > viewport.width ||
+        bullet.y < 0 ||
+        bullet.y > viewport.height
+      ) {
         bullet.destroy();
       }
     });
@@ -141,8 +154,89 @@ export class GameScene extends Phaser.Scene {
     this.drawHpBar();
   }
 
+  public setVirtualControlState(direction: Direction, pressed: boolean) {
+    this.virtualControls[direction] = pressed;
+  }
+
+  public togglePause() {
+    if (this.isGameOver) {
+      return;
+    }
+
+    if (this.scene.isPaused()) {
+      this.resumeGame();
+      return;
+    }
+
+    this.pauseGame();
+  }
+
+  private createPlayer() {
+    const viewport = getViewport(this);
+    const player = createArcadeText(this, viewport.centerX, viewport.centerY, '🤖', {
+      fontSize: '48px'
+    }).setOrigin(0.5);
+
+    player.body.setCollideWorldBounds(true);
+    setCircleBody(player, 20, 4);
+
+    return player;
+  }
+
+  private setupCollisions() {
+    this.physics.add.overlap(this.bullets, this.enemies, (bulletObject, enemyObject) => {
+      const bullet = bulletObject as ArcadeText;
+      const enemy = enemyObject as EnemyActor;
+
+      bullet.destroy();
+
+      const enemyHP = (enemy.getData('hp') as number | undefined) ?? 1;
+      const nextHP = enemyHP - 1;
+      enemy.setData('hp', nextHP);
+
+      this.tweens.add({
+        targets: enemy,
+        alpha: 0.5,
+        duration: 50,
+        yoyo: true,
+        repeat: 1
+      });
+
+      if (nextHP > 0) {
+        return;
+      }
+
+      const boss = isBossEnemy(enemy);
+      enemy.destroy();
+
+      this.score += boss ? 100 : 10;
+      this.scoreText.setText(`⭐ Score: ${this.score}`);
+
+      this.checkDifficultyScaling();
+    });
+
+    this.physics.add.overlap(this.player, this.enemies, (_playerObject, enemyObject) => {
+      if (this.isGameOver) {
+        return;
+      }
+
+      const enemy = enemyObject as EnemyActor;
+      const enemyIsBoss = isBossEnemy(enemy);
+
+      enemy.destroy();
+      this.cameras.main.shake(100, 0.01);
+
+      this.hp -= enemyIsBoss ? 40 : 20;
+
+      if (this.hp <= 0) {
+        this.hp = 0;
+        this.triggerGameOver();
+      }
+    });
+  }
+
   private startSpawnTimer() {
-    if (this.spawnTimerEvent) this.spawnTimerEvent.destroy();
+    this.spawnTimerEvent?.destroy();
 
     this.spawnTimerEvent = this.time.addEvent({
       delay: this.spawnDelay,
@@ -153,80 +247,101 @@ export class GameScene extends Phaser.Scene {
   }
 
   private spawnEnemy() {
-    if (this.isGameOver) return;
+    if (this.isGameOver) {
+      return;
+    }
 
+    const viewport = getViewport(this);
     const angle = Math.random() * Math.PI * 2;
-    const distance = 500;
+    const distance = getSpawnDistance(viewport);
     const x = this.player.x + Math.cos(angle) * distance;
     const y = this.player.y + Math.sin(angle) * distance;
 
-    if (this.score > 0 && this.score % 200 === 0 && this.enemies.getMatching('isBoss', true).length === 0) {
+    if (
+      this.score > 0 &&
+      this.score % 200 === 0 &&
+      this.enemies.getMatching('isBoss', true).length === 0
+    ) {
       this.spawnBoss(x, y);
       return;
     }
 
-    const enemy = this.add.text(x, y, '💩', { fontSize: '32px' });
+    const enemy = createArcadeText(this, x, y, '💩', { fontSize: '32px' });
+    setCircleBody(enemy, 12, 4);
+    enemy.setData('hp', 1);
+    enemy.setData('isBoss', false);
     this.enemies.add(enemy);
-
-    const body = enemy.body as Phaser.Physics.Arcade.Body;
-    body.setCircle(12, 4, 4);
   }
 
   private spawnBoss(x: number, y: number) {
-    const boss = this.add.text(x, y, '👿', { fontSize: '64px' }); 
-    this.enemies.add(boss);
-
-    const body = boss.body as Phaser.Physics.Arcade.Body;
-    body.setCircle(24, 8, 8);
-
+    const boss = createArcadeText(this, x, y, '👾', { fontSize: '64px' });
+    setCircleBody(boss, 24, 8);
     boss.setData('isBoss', true);
-    boss.setData('hp', 5);         
-    boss.setData('speed', 60);     
+    boss.setData('hp', 5);
+    boss.setData('speed', 60);
+    this.enemies.add(boss);
   }
 
   private checkDifficultyScaling() {
-    const currentLvl = Math.floor(this.score / 100) + 1;
-    this.lvlText.setText(`Level ${currentLvl}`);
+    const currentLevel = Math.floor(this.score / 100) + 1;
+    this.lvlText.setText(`Level ${currentLevel}`);
 
-    const newDelay = Math.max(400, 1500 - (currentLvl - 1) * 150);
+    const newDelay = Math.max(400, 1500 - (currentLevel - 1) * 150);
     if (newDelay !== this.spawnDelay) {
       this.spawnDelay = newDelay;
-      this.startSpawnTimer(); 
+      this.startSpawnTimer();
     }
 
-    this.baseEnemySpeed = 100 + (currentLvl - 1) * 10;
+    this.baseEnemySpeed = 100 + (currentLevel - 1) * 10;
   }
 
   private shootAtClosestEnemy() {
-    const closestEnemy = this.physics.closest(this.player, this.enemies.getChildren()) as any;
-    if (!closestEnemy) return;
+    const closestEnemy = this.findClosestEnemy();
+    if (!closestEnemy) {
+      return;
+    }
 
-    const bullet = this.add.text(this.player.x, this.player.y, '🍆', { fontSize: '28px' });
+    const bullet = createArcadeText(this, this.player.x, this.player.y, '🍆', {
+      fontSize: '28px'
+    });
+    setCircleBody(bullet, 10, 4);
     this.bullets.add(bullet);
 
-    const body = bullet.body as Phaser.Physics.Arcade.Body;
-    body.setCircle(10, 4, 4);
-
     this.physics.moveToObject(bullet, closestEnemy, this.bulletSpeed);
+  }
+
+  private findClosestEnemy() {
+    const enemies = this.enemies.getChildren() as EnemyActor[];
+    let closestEnemy: EnemyActor | null = null;
+    let closestDistance = Number.POSITIVE_INFINITY;
+
+    for (const enemy of enemies) {
+      const distance = Phaser.Math.Distance.Between(this.player.x, this.player.y, enemy.x, enemy.y);
+      if (distance < closestDistance) {
+        closestDistance = distance;
+        closestEnemy = enemy;
+      }
+    }
+
+    return closestEnemy;
   }
 
   private drawHpBar() {
     this.hpBar.clear();
 
-    if (this.isGameOver) return;
+    if (this.isGameOver) {
+      return;
+    }
 
     const width = 50;
     const height = 6;
-    
     const x = this.player.x - width / 2;
     const y = this.player.y - 35;
 
-    this.hpBar.fillStyle(0x333333, 0.8); 
+    this.hpBar.fillStyle(0x333333, 0.8);
     this.hpBar.fillRect(x, y, width, height);
 
-    const hpPercentage = this.hp / 100;
-    const currentWidth = width * hpPercentage;
-
+    const currentWidth = width * (this.hp / 100);
     const barColor = this.hp > 40 ? 0x2ecc71 : 0xe74c3c;
 
     this.hpBar.fillStyle(barColor, 1);
@@ -235,24 +350,122 @@ export class GameScene extends Phaser.Scene {
 
   private triggerGameOver() {
     this.isGameOver = true;
-    if (this.spawnTimerEvent) this.spawnTimerEvent.destroy();
+    this.spawnTimerEvent?.destroy();
     this.hpBar.clear();
+    this.hidePauseOverlay();
 
     this.player.body.setVelocity(0);
-    this.enemies.getChildren().forEach((enemy: any) => {
+    this.enemies.getChildren().forEach((enemyObject) => {
+      const enemy = enemyObject as EnemyActor;
       enemy.body.setVelocity(0);
     });
 
-    this.gameOverText = this.add.text(400, 250, 'GAME OVER', {
-      fontSize: '64px', color: '#ff4d4d', fontFamily: 'Arial', fontWeight: 'bold'
+    const viewport = getViewport(this);
+
+    this.gameOverText = this.add.text(viewport.centerX, viewport.centerY - 50, 'GAME OVER', {
+      fontSize: '64px',
+      color: '#ff4d4d',
+      fontFamily: 'Arial',
+      fontStyle: 'bold'
     }).setOrigin(0.5);
 
-    this.restartText = this.add.text(400, 340, 'Click to restart', {
-      fontSize: '24px', color: '#ffffff', fontFamily: 'Arial'
+    this.restartText = this.add.text(viewport.centerX, viewport.centerY + 40, 'Click to restart', {
+      fontSize: '24px',
+      color: '#ffffff',
+      fontFamily: 'Arial'
     }).setOrigin(0.5);
 
     const restart = () => this.scene.restart();
     this.input.once('pointerdown', restart);
     this.input.keyboard?.once('keydown', restart);
+  }
+
+  private pauseGame() {
+    this.isPaused = true;
+    this.resetVirtualControls();
+    this.showPauseOverlay();
+    this.scene.pause();
+  }
+
+  private resumeGame() {
+    this.isPaused = false;
+    this.resetVirtualControls();
+    this.hidePauseOverlay();
+    this.scene.resume();
+  }
+
+  private handleResize() {
+    this.syncViewport();
+    this.positionHud();
+  }
+
+  private syncViewport() {
+    const viewport = getViewport(this);
+
+    this.physics.world.setBounds(0, 0, viewport.width, viewport.height);
+    this.cameras.main.setBounds(0, 0, viewport.width, viewport.height);
+    this.player.body.setCollideWorldBounds(true);
+
+    this.positionHud();
+  }
+
+  private positionHud() {
+    const viewport = getViewport(this);
+
+    this.scoreText.setPosition(20, 20);
+    this.lvlText.setPosition(viewport.width - 20, 20);
+
+    if (this.gameOverText && this.restartText) {
+      this.gameOverText.setPosition(viewport.centerX, viewport.centerY - 50);
+      this.restartText.setPosition(viewport.centerX, viewport.centerY + 40);
+    }
+
+    if (this.pauseText && this.pauseHintText) {
+      this.pauseText.setPosition(viewport.centerX, viewport.centerY - 50);
+      this.pauseHintText.setPosition(viewport.centerX, viewport.centerY + 20);
+    }
+  }
+
+  private cleanup() {
+    this.scale.off(Phaser.Scale.Events.RESIZE, this.handleResize, this);
+    window.removeEventListener('keydown', this.handleGlobalPauseKeyDown);
+    this.spawnTimerEvent?.destroy();
+  }
+
+  private showPauseOverlay() {
+    const viewport = getViewport(this);
+
+    if (!this.pauseText) {
+      this.pauseText = this.add.text(viewport.centerX, viewport.centerY - 50, 'PAUSED', {
+        fontSize: '56px',
+        color: '#ffffff',
+        fontFamily: 'Arial',
+        fontStyle: 'bold'
+      }).setOrigin(0.5);
+    }
+
+    if (!this.pauseHintText) {
+      this.pauseHintText = this.add.text(viewport.centerX, viewport.centerY + 20, 'Tap Pause to continue', {
+        fontSize: '22px',
+        color: '#d1d5db',
+        fontFamily: 'Arial'
+      }).setOrigin(0.5);
+    }
+
+    this.positionHud();
+  }
+
+  private hidePauseOverlay() {
+    this.pauseText?.destroy();
+    this.pauseHintText?.destroy();
+    this.pauseText = undefined;
+    this.pauseHintText = undefined;
+  }
+
+  private resetVirtualControls() {
+    this.virtualControls.up = false;
+    this.virtualControls.down = false;
+    this.virtualControls.left = false;
+    this.virtualControls.right = false;
   }
 }
