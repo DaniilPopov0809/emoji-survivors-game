@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { createArcadeText, isBossEnemy, setCircleBody, type ArcadeText } from '../game/actors';
 import { getSpawnDistance, getViewport } from '../game/layout';
 import { SoundEffects } from '../game/soundEffects';
+import backgroundImage from '../assets/bg.png';
 
 type EnemyActor = ArcadeText;
 type Direction = 'up' | 'down' | 'left' | 'right';
@@ -14,6 +15,7 @@ const hudOffset = {
 };
 
 export class GameScene extends Phaser.Scene {
+  private background!: Phaser.GameObjects.TileSprite;
   private player!: ArcadeText;
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private wasd!: Phaser.Types.Input.Keyboard.CursorKeys & {
@@ -27,7 +29,7 @@ export class GameScene extends Phaser.Scene {
   private bullets!: Phaser.Physics.Arcade.Group;
 
   private nextAttackTime = 0;
-  private attackDelay = 1200;
+  private attackDelay = 1700;
   private bulletSpeed = 250;
   private baseEnemySpeed = 100;
 
@@ -47,7 +49,6 @@ export class GameScene extends Phaser.Scene {
   };
 
   private scoreText!: Phaser.GameObjects.Text;
-  private bestScoreText!: Phaser.GameObjects.Text;
   private lvlText!: Phaser.GameObjects.Text;
   private gameOverText?: Phaser.GameObjects.Text;
   private restartText?: Phaser.GameObjects.Text;
@@ -66,11 +67,36 @@ export class GameScene extends Phaser.Scene {
     }
   };
 
+  private readonly handleRestartRequest = () => {
+    if (!this.isGameOver) {
+      return;
+    }
+
+    this.destroyGameOverUi();
+    this.resetVirtualControls();
+
+    // Restart on the next tick so we don't rebuild the scene inside the input callback.
+    this.time.delayedCall(0, () => {
+      this.scene.restart();
+    });
+  };
+
   constructor() {
     super('GameScene');
   }
 
+  preload() {
+    this.load.image('game-background', backgroundImage);
+  }
+
   create() {
+    this.resetSceneState();
+
+    const viewport = getViewport(this);
+    this.background = this.add.tileSprite(0, 0, viewport.width, viewport.height, 'game-background')
+      .setOrigin(0)
+      .setDepth(-1000);
+
     this.hpBar = this.add.graphics();
     this.player = this.createPlayer();
     this.cursors = this.input.keyboard!.createCursorKeys();
@@ -98,7 +124,7 @@ export class GameScene extends Phaser.Scene {
 
     const bestScore = localStorage.getItem('bestScore') ?? '0';
 
-    this.bestScoreText = this.add.text(20, 60, `🏆 Best: ${bestScore}`, {
+    this.add.text(20, 60, `🏆 Best: ${bestScore}`, {
       fontSize: '20px',
       color: '#be2f0b',
       fontFamily: 'Orbitron'
@@ -423,9 +449,8 @@ export class GameScene extends Phaser.Scene {
       fontFamily: 'Orbitron'
     }).setOrigin(0.5);
 
-    const restart = () => this.scene.restart();
-    this.input.once('pointerdown', restart);
-    this.input.keyboard?.once('keydown', restart);
+    this.input.once('pointerdown', this.handleRestartRequest);
+    this.input.keyboard?.once('keydown', this.handleRestartRequest);
   }
 
   private pauseGame() {
@@ -450,6 +475,7 @@ export class GameScene extends Phaser.Scene {
   private syncViewport() {
     const viewport = getViewport(this);
 
+    this.background.setSize(viewport.width, viewport.height);
     this.physics.world.setBounds(0, 0, viewport.width, viewport.height);
     this.cameras.main.setBounds(0, 0, viewport.width, viewport.height);
     this.player.body.setCollideWorldBounds(true);
@@ -510,10 +536,35 @@ export class GameScene extends Phaser.Scene {
     this.pauseHintText = undefined;
   }
 
+  private destroyGameOverUi() {
+    this.gameOverText?.destroy();
+    this.restartText?.destroy();
+    this.gameOverText = undefined;
+    this.restartText = undefined;
+  }
+
   private resetVirtualControls() {
     this.virtualControls.up = false;
     this.virtualControls.down = false;
     this.virtualControls.left = false;
     this.virtualControls.right = false;
+  }
+
+  private resetSceneState() {
+    this.nextAttackTime = 0;
+    this.attackDelay = 1700;
+    this.bulletSpeed = 250;
+    this.baseEnemySpeed = 100;
+    this.spawnDelay = 1500;
+    this.hp = 100;
+    this.score = 0;
+    this.isGameOver = false;
+    this.isPaused = false;
+    this.spawnTimerEvent = undefined;
+    this.gameOverText = undefined;
+    this.restartText = undefined;
+    this.pauseText = undefined;
+    this.pauseHintText = undefined;
+    this.resetVirtualControls();
   }
 }
