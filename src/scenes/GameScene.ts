@@ -47,6 +47,7 @@ export class GameScene extends Phaser.Scene {
   };
 
   private scoreText!: Phaser.GameObjects.Text;
+  private bestScoreText!: Phaser.GameObjects.Text;
   private lvlText!: Phaser.GameObjects.Text;
   private gameOverText?: Phaser.GameObjects.Text;
   private restartText?: Phaser.GameObjects.Text;
@@ -92,6 +93,14 @@ export class GameScene extends Phaser.Scene {
     this.scoreText = this.add.text(20, 20, '⭐ Score: 0', {
       fontSize: '20px',
       color: '#dfcb1f',
+      fontFamily: 'Orbitron'
+    });
+
+    const bestScore = localStorage.getItem('bestScore') ?? '0';
+
+    this.bestScoreText = this.add.text(20, 60, `🏆 Best: ${bestScore}`, {
+      fontSize: '20px',
+      color: '#be2f0b',
       fontFamily: 'Orbitron'
     });
 
@@ -301,7 +310,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private spawnBoss(x: number, y: number) {
-    const boss = createArcadeText(this, x, y, '👾', { fontSize: '64px' });
+    const boss = createArcadeText(this, x, y, '👹', { fontSize: '64px' });
     setCircleBody(boss, 24, 8);
     boss.setData('isBoss', true);
     boss.setData('hp', 5);
@@ -387,6 +396,11 @@ export class GameScene extends Phaser.Scene {
     this.hpBar.clear();
     this.hidePauseOverlay();
     this.sounds.gameOver();
+
+    const bestScore = localStorage.getItem('bestScore')
+    if (this.score > Number(bestScore || '0')) {
+      window.localStorage.setItem('bestScore', String(this.score));
+    }
 
     this.player.body.setVelocity(0);
     this.enemies.getChildren().forEach((enemyObject) => {
