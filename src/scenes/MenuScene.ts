@@ -4,6 +4,8 @@ export class MenuScene extends Phaser.Scene {
   private title?: Phaser.GameObjects.Text;
   private playButton?: Phaser.GameObjects.Text;
   private titleTween?: Phaser.Tweens.Tween;
+  private createByText?: Phaser.GameObjects.Text;
+  private emailLink?: Phaser.GameObjects.Text;
 
   constructor() {
     super('MenuScene');
@@ -17,7 +19,7 @@ export class MenuScene extends Phaser.Scene {
   }
 
   private createUi() {
-    if (this.title && this.playButton) {
+    if (this.title && this.playButton && this.createByText) {
       return;
     }
 
@@ -38,6 +40,23 @@ export class MenuScene extends Phaser.Scene {
       padding: { x: 20, y: 10 },
       color: '#ffffff'
     }).setOrigin(0.5);
+
+    this.createByText = this.add.text(0, 0, `created by Daniil Popov ©${new Date().getFullYear()}`, {
+      fontSize: '16px',
+      fontFamily: 'Orbitron',
+      color: '#ffffff',
+    }).setOrigin(0.5);
+
+    this.emailLink = this.add.text(0, 0, 'x6uhrox@gmail.com', {
+      fontSize: '14px',
+      fontFamily: 'Orbitron',
+      color: '#2ecc71'
+    }).setOrigin(0.5);
+
+    this.emailLink.setInteractive({ useHandCursor: true });
+    this.emailLink.on('pointerdown', () => {
+      window.location.href = 'mailto:x6uhrox@gmail.com';
+    });
 
     this.playButton.setInteractive({ useHandCursor: true });
 
@@ -63,13 +82,15 @@ export class MenuScene extends Phaser.Scene {
     const centerY = height / 2;
     const isMobile = width < 1024;
 
-    if (!this.title || !this.playButton) {
+    if (!this.title || !this.playButton || !this.createByText || !this.emailLink) {
       return;
     }
 
     this.title.setFontSize(isMobile ? '24px' : '48px');
     this.title.setPosition(centerX, centerY - 100);
     this.playButton.setPosition(centerX, centerY + 80);
+    this.createByText.setPosition(centerX, height - 50);
+    this.emailLink.setPosition(centerX, height - 20);
 
     this.titleTween?.destroy();
     this.titleTween = this.tweens.add({
