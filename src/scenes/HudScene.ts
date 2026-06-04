@@ -12,10 +12,10 @@ export class HudScene extends Phaser.Scene {
   private scoreText!: Phaser.GameObjects.Text;
   private bestScoreText!: Phaser.GameObjects.Text;
   private lvlText!: Phaser.GameObjects.Text;
-  
+
   private gameOverText?: Phaser.GameObjects.Text;
   private restartText?: Phaser.GameObjects.Text;
-  
+
   private pauseText?: Phaser.GameObjects.Text;
   private pauseHintText?: Phaser.GameObjects.Text;
 
@@ -28,7 +28,6 @@ export class HudScene extends Phaser.Scene {
   create() {
     this.gameScene = this.scene.get('GameScene');
 
-    // Create UI Elements
     this.scoreText = this.add.text(hudOffset.scoreX, hudOffset.scoreY, '⭐ Score: 0', {
       fontSize: '20px',
       color: '#dfcb1f',
@@ -49,13 +48,10 @@ export class HudScene extends Phaser.Scene {
     });
     this.lvlText.setOrigin(1, 0);
 
-    // Initial Layout
     this.layout();
 
-    // Listen to Resize
     this.scale.on(Phaser.Scale.Events.RESIZE, this.handleResize, this);
 
-    // Listen to GameScene events
     if (this.gameScene) {
       this.gameScene.events.on('score-changed', this.handleScoreChanged, this);
       this.gameScene.events.on('level-changed', this.handleLevelChanged, this);
@@ -65,7 +61,6 @@ export class HudScene extends Phaser.Scene {
       this.gameScene.events.on('game-resumed', this.hidePauseOverlay, this);
     }
 
-    // Cleanup on Shutdown
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, this.cleanup, this);
   }
 
@@ -166,7 +161,7 @@ export class HudScene extends Phaser.Scene {
 
   private cleanup() {
     this.scale.off(Phaser.Scale.Events.RESIZE, this.handleResize, this);
-    
+
     if (this.gameScene) {
       this.gameScene.events.off('score-changed', this.handleScoreChanged, this);
       this.gameScene.events.off('level-changed', this.handleLevelChanged, this);

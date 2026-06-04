@@ -10,10 +10,9 @@ export class Bullet extends Phaser.GameObjects.Text {
     });
     this.setOrigin(0.5);
 
-    // Add to scene and enable physics
     scene.add.existing(this);
     scene.physics.add.existing(this);
-    
+
     this.body.setCircle(
       GAME_CONFIG.bullet.bodyRadius,
       GAME_CONFIG.bullet.bodyOffset,

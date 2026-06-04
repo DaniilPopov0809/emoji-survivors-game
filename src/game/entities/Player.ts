@@ -11,11 +11,10 @@ export class Player extends Phaser.GameObjects.Text {
       fontSize: `${GAME_CONFIG.player.size}px`
     });
     this.setOrigin(0.5);
-    
-    // Add to scene and enable physics
+
     scene.add.existing(this);
     scene.physics.add.existing(this);
-    
+
     this.body.setCollideWorldBounds(true);
     this.body.setCircle(
       GAME_CONFIG.player.bodyRadius,
@@ -23,7 +22,6 @@ export class Player extends Phaser.GameObjects.Text {
       GAME_CONFIG.player.bodyOffset
     );
 
-    // Create HP bar graphics
     this.hpBar = scene.add.graphics();
   }
 

@@ -22,17 +22,15 @@ export class Enemy extends Phaser.GameObjects.Text {
     this.damage = config.damage;
     this.scoreValue = config.scoreValue;
 
-    // Add to scene and enable physics
     scene.add.existing(this);
     scene.physics.add.existing(this);
-    
+
     this.body.setCircle(
       config.bodyRadius,
       config.bodyOffset,
       config.bodyOffset
     );
 
-    // Set Phaser data keys for compatibility with other game systems
     this.setData('isBoss', isBoss);
     this.setData('hp', this.hp);
     this.setData('speed', this.speed);
